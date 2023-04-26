@@ -139,5 +139,27 @@ grab_frame(ImageGetter * g)
 	return 0;
 }
 
+int save_buffer(char *buffer, size_t buffer_size, const char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        perror("Could not open file");
+        return -1;
+    }
+
+    if (fwrite(buffer, buffer_size, 1, fp) != 1) {
+        perror("Could not write buffer to file");
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+
+    printf("Buffer saved to %s\n", filename);
+
+    return 0;
+}
+
+
 #endif
 
