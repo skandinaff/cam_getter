@@ -32,8 +32,7 @@ typedef struct {
 	char *				buffer;
 } ImageGetter;
 
-void 
-initialize_imget(ImageGetter * g, const char * device)
+void initialize_imget(ImageGetter * g, const char * device)
 {
 	//TODO: Make it so a device can be chosen
 	g->fd = open(device, O_RDWR);
@@ -54,8 +53,7 @@ initialize_imget(ImageGetter * g, const char * device)
 	}
 }
 
-void 
-set_img_format(ImageGetter * g)
+void set_img_format(ImageGetter * g)
 {
 	// Set Image format
 	g->imageFormat.type				   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -95,8 +93,7 @@ setup_buffers(ImageGetter * g)
 	}
 }
 
-int 
-grab_frame(ImageGetter * g)
+int grab_frame(ImageGetter * g)
 {
 	// mmap() will map the memory address of the device to an address in memory
 	g->buffer = (char *)mmap(NULL, g->queryBuffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, g->fd, g->queryBuffer.m.offset);
