@@ -19,8 +19,9 @@
 #include <iostream>
 #include <string>
 #include <string.h>
+#include <cstring>
 
-
+using namespace std;
 
 typedef struct {
 	int					fd;				// File descriptor
@@ -32,14 +33,14 @@ typedef struct {
 } ImageGetter;
 
 void 
-initialize_imget(ImageGetter * g, char * device)
+initialize_imget(ImageGetter * g, const char * device)
 {
 	//TODO: Make it so a device can be chosen
-	g->fd = open("/dev/video0", O_RDWR);
+	g->fd = open(device, O_RDWR);
 	if (g->fd < 0) {
 		perror("Failed to open device, OPEN");
 		//exit(1);
-	}
+	} else cout << "Camera Opened!" << endl;
 
 
 	// Ask the device if it can capture frames
@@ -158,6 +159,13 @@ int save_buffer(char *buffer, size_t buffer_size, const std::string& filename) {
     std::cout << "Buffer saved to " << filename << std::endl;
 
     return 0;
+}
+
+ImageGetter& PrepareCamera(std::string dev){
+    static ImageGetter g;
+    initialize_imget(&g, dev.c_str());
+    set_img_format(&g);
+    return g;
 }
 
 #endif
