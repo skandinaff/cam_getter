@@ -96,10 +96,13 @@ setup_buffers(ImageGetter * g)
 int grab_frame(ImageGetter * g)
 {
 	// mmap() will map the memory address of the device to an address in memory
+	cout << "mapping memory addr" << endl;
 	g->buffer = (char *)mmap(NULL, g->queryBuffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, g->fd, g->queryBuffer.m.offset);
+	cout << "setting buffer to 0" << endl;
 	memset(g->buffer, 0, g->queryBuffer.length);
 
 	// Create a new buffer type so the device knows which buffer we are talking about
+	cout << "create a new buffer" << endl;
 	g->bufferinfo;
 	memset(&g->bufferinfo, 0, sizeof(g->bufferinfo));
 	g->bufferinfo.type	 = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -107,7 +110,7 @@ int grab_frame(ImageGetter * g)
 	g->bufferinfo.index	 = 0;
 
 	// Activate streaming
-
+	cout << "activate streaming" << endl;
 	int type = g->bufferinfo.type;
 	if (ioctl(g->fd, VIDIOC_STREAMON, &type) < 0) {
 		perror("Could not start streaming, VIDIOC_STREAMON");
@@ -136,7 +139,7 @@ int grab_frame(ImageGetter * g)
 	printf("Buffer has: %f",(double)g->bufferinfo.bytesused / 1024);
     printf(" KBytes of data\n");
 
-	close(g->fd);
+	//close(g->fd);
 
 	return 0;
 }
@@ -158,11 +161,10 @@ int save_buffer(char *buffer, size_t buffer_size, const std::string& filename) {
     return 0;
 }
 
-ImageGetter& PrepareCamera(std::string dev){
-    static ImageGetter g;
-    initialize_imget(&g, dev.c_str());
-    set_img_format(&g);
-    return g;
+void PrepareCamera(ImageGetter* g, std::string dev){
+    initialize_imget(g, dev.c_str());
+    set_img_format(g);
+	setup_buffers(g);
 }
 
 #endif
