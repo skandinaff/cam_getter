@@ -15,7 +15,11 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <fstream>
+#include <iostream>
+#include <string>
 #include <string.h>
+
 
 
 typedef struct {
@@ -139,27 +143,22 @@ grab_frame(ImageGetter * g)
 	return 0;
 }
 
-int save_buffer(char *buffer, size_t buffer_size, const char *filename)
-{
-    FILE *fp = fopen(filename, "wb");
-    if (!fp) {
-        perror("Could not open file");
+int save_buffer(char *buffer, size_t buffer_size, const std::string& filename) {
+    std::ofstream ofs(filename, std::ios::binary);
+    if (!ofs) {
+        std::cerr << "Could not open file: " << filename << std::endl;
         return -1;
     }
 
-    if (fwrite(buffer, buffer_size, 1, fp) != 1) {
-        perror("Could not write buffer to file");
-        fclose(fp);
+    if (!ofs.write(buffer, buffer_size)) {
+        std::cerr << "Could not write buffer to file: " << filename << std::endl;
         return -1;
     }
 
-    fclose(fp);
-
-    printf("Buffer saved to %s\n", filename);
+    std::cout << "Buffer saved to " << filename << std::endl;
 
     return 0;
 }
-
 
 #endif
 
