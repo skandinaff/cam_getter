@@ -227,6 +227,38 @@ int save_buffer(char *buffer, size_t buffer_size, const std::string& filename) {
 
     return 0;
 }
+int save_buffer_as_array(char *buffer, size_t buffer_size, const std::string& filename, int width, int height, int bytes_per_pixel) {
+    std::ofstream ofs(filename, std::ios::binary);
+    if (!ofs) {
+        std::cerr << "Could not open file: " << filename << std::endl;
+        return -1;
+    }
+
+    // Calculate the number of bytes per row
+    int bytes_per_row = width * bytes_per_pixel;
+
+    // Create a 2D byte array of the appropriate size
+    std::vector<std::vector<unsigned char>> image_data(height, std::vector<unsigned char>(width));
+
+    // Copy the image data into the 2D array
+	cout << "Copying bytes..." << endl;
+    int buffer_index = 0;
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < bytes_per_row; col++) {
+            image_data[row][col] = buffer[buffer_index++];
+        }
+    }
+    cout << "Writing bytes into the file..." << endl;
+    // Write the 2D byte array to file
+	
+    for (int row = 0; row < height; row++) {
+        ofs.write(reinterpret_cast<char*>(image_data[row].data()), bytes_per_row);
+    }
+
+    std::cout << "Buffer saved to " << filename << std::endl;
+
+    return 0;
+}
 
 void PrepareCamera(ImageGetter* g, std::string dev){
     initialize_imget(g, dev.c_str());
