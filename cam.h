@@ -57,15 +57,17 @@ void set_img_format(ImageGetter * g)
 {
 	// Set Image format
 	g->imageFormat.type				   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	g->imageFormat.fmt.pix.width	   = 1024;
-	g->imageFormat.fmt.pix.height	   = 1024;
-	g->imageFormat.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+	g->imageFormat.fmt.pix.width	   = 640;
+	g->imageFormat.fmt.pix.height	   = 480;
+	g->imageFormat.fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;//V4L2_PIX_FMT_MJPEG;
 	g->imageFormat.fmt.pix.field	   = V4L2_FIELD_NONE;
 	// tell the device you are using this format
-	if (ioctl(g->fd, VIDIOC_S_FMT, &g->imageFormat) < 0) {
+	int ret = 0;
+	if (ret = ioctl(g->fd, VIDIOC_S_FMT, &g->imageFormat) < 0) {
 		perror("Device could not set format, VIDIOC_S_FMT");
 		//exit(1);
 	}
+	cout << "Set img format resulted with: " << ret << endl; 
 }
 
 void 
