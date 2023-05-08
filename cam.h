@@ -262,11 +262,12 @@ int save_buffer_as_array(char *buffer, size_t buffer_size, const std::string& fi
     return 0;
 }
 
-void PrepareCamera(ImageGetter* g, std::string dev){
+int PrepareCamera(ImageGetter* g, std::string dev){
     initialize_imget(g, dev.c_str());
     set_img_format(g);
 	setup_buffers(g);
 	pre_grab_frame(g);
+	return 0;
 }
 
 #endif
