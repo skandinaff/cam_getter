@@ -1,5 +1,9 @@
 // Copyright (c) 2021, Friedrich Doku
-
+/*
+SONY IMX335 CMOS, It supports the below resolution & frame rate:
+MJPG: 2592x1944@30fps; 2048x1536@20fps; 1920x1080@30fps; 1280x960@30fps; 1280x720@30fps; 1024x768@30fps; 800x600@30fps; 640x480@30fps; 320x240@30fps; 160x120@30fps; 
+YUY2: 2592x1944@2fps; 2048x1536@3fps; 1920x1080@3fps; 1280x960@8fps; 1280x720@8fps; 960x540@15fps; 800x600@20fps; 640x480@30fps; 
+*/
 #ifndef CAM_H
 #define CAM_H
 
@@ -20,8 +24,21 @@
 #include <string>
 #include <string.h>
 #include <cstring>
+#include <map>
 
 using namespace std;
+
+struct Resolution {
+    int width;
+    int height;
+};
+
+std::map<std::string, Resolution> resolutions = {
+    {"VGA", {640, 480}},
+    {"XGA", {1024, 768}},
+    {"WXGAPlus", {2592, 1944}},
+    {"FullHD", {1920, 1080}}
+};
 
 typedef struct {
 	int					fd;				// File descriptor
@@ -53,12 +70,12 @@ void initialize_imget(ImageGetter * g, const char * device)
 	}
 }
 
-void set_img_format(ImageGetter * g)
+void set_img_format(ImageGetter * g, const Resolution& res)
 {
 	// Set Image format
 	g->imageFormat.type				   = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	g->imageFormat.fmt.pix.width	   = 640;
-	g->imageFormat.fmt.pix.height	   = 480;
+	g->imageFormat.fmt.pix.width	   = res.width;
+	g->imageFormat.fmt.pix.height	   = res.height;
 	g->imageFormat.fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;//V4L2_PIX_FMT_MJPEG;
 	g->imageFormat.fmt.pix.field	   = V4L2_FIELD_NONE;
 	// tell the device you are using this format
@@ -264,7 +281,7 @@ int save_buffer_as_array(char *buffer, size_t buffer_size, const std::string& fi
 
 int PrepareCamera(ImageGetter* g, std::string dev){
     initialize_imget(g, dev.c_str());
-    set_img_format(g);
+    set_img_format(g, resolutions["WXGAPlus"]);
 	setup_buffers(g);
 	pre_grab_frame(g);
 	return 0;
