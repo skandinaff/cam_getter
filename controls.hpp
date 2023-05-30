@@ -114,17 +114,20 @@ inline void CamCtrl::set_camera_control(ImageGetter * g, __u32 controlId, __s32 
     control.id = controlId;
     control.value = value;
     
+    cout << "fd = " << g->fd << endl;
+    cout << "Attmept to write Control " << controlId << " value: "<< value << endl;
+
     if (ioctl(g->fd, VIDIOC_G_CTRL, &control) == -1) {
         perror("Failed to set camera control");
         cout << "ControlID: " << controlId << endl; 
         // handle error
     } else {
-        cout << "Control " << controlId << "writen sucessfully!" << endl;
+        cout << " Control " << controlId << "writen sucessfully!" << endl;
     }
 }
 
 inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& controls) {
-    set_camera_control(g, 0x00980900, controls.brightness); // V4L2_CID_BRIGHTNESS
+    set_camera_control(g, V4L2_CID_BRIGHTNESS, controls.brightness);
     set_camera_control(g, V4L2_CID_CONTRAST, controls.contrast);
     set_camera_control(g, V4L2_CID_SATURATION, controls.saturation);
     set_camera_control(g, V4L2_CID_HUE, controls.hue);
@@ -150,7 +153,6 @@ inline bool CamCtrl::is_control_supported(ImageGetter * g, __u32 controlId) {
         // control is disabled, not supported
         return false;
     }
-
     cout << "Control supported!" << endl;
     return true;
 }
@@ -168,7 +170,6 @@ inline void CamCtrl::check_camera_capabilities(ImageGetter * g, const char * dev
         V4L2_CID_SATURATION,
         V4L2_CID_HUE,
         V4L2_CID_AUTO_WHITE_BALANCE,
-		V4L2_CID_DO_WHITE_BALANCE,
         V4L2_CID_GAMMA,
         V4L2_CID_GAIN,
         V4L2_CID_POWER_LINE_FREQUENCY,
@@ -177,7 +178,7 @@ inline void CamCtrl::check_camera_capabilities(ImageGetter * g, const char * dev
         V4L2_CID_BACKLIGHT_COMPENSATION,
         V4L2_CID_EXPOSURE_AUTO
     };
-
+    cout << "Checking camera capabilities for fd: " << g->fd << endl;
     for (const auto& controlId : controlIds) {
         if (is_control_supported(g, controlId)) {
             std::cout << "Control " << std::hex << controlId << " is supported" << std::endl;
