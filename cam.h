@@ -25,6 +25,7 @@ YUY2: 2592x1944@2fps; 2048x1536@3fps; 1920x1080@3fps; 1280x960@8fps; 1280x720@8f
 #include <string.h>
 #include <cstring>
 #include <map>
+#include <vector>
 
 using namespace std;
 
@@ -70,6 +71,58 @@ void initialize_imget(ImageGetter * g, const char * device)
 	}
 }
 
+bool is_control_supported(ImageGetter * g, __u32 controlId) {
+    struct v4l2_queryctrl queryControl;
+    queryControl.id = controlId;
+
+    if (ioctl(g->fd, VIDIOC_QUERYCTRL, &queryControl) == -1) {
+        // failed to query control, handle error
+        return false;
+    }
+
+    if (queryControl.flags & V4L2_CTRL_FLAG_DISABLED) {
+        // control is disabled, not supported
+        return false;
+    }
+
+    // control is supported
+    return true;
+}
+
+void check_camera_capabilities(ImageGetter * g, const char * device) {
+    g->fd = open(device, O_RDWR);
+    if (g->fd == -1) {
+        perror("Failed to open device");
+        return;
+    }
+
+    std::vector<__u32> controlIds = {
+        V4L2_CID_BRIGHTNESS,
+        V4L2_CID_CONTRAST,
+        V4L2_CID_SATURATION,
+        V4L2_CID_HUE,
+        V4L2_CID_AUTO_WHITE_BALANCE,
+		V4L2_CID_DO_WHITE_BALANCE,
+        V4L2_CID_GAMMA,
+        V4L2_CID_GAIN,
+        V4L2_CID_POWER_LINE_FREQUENCY,
+        V4L2_CID_WHITE_BALANCE_TEMPERATURE,
+        V4L2_CID_SHARPNESS,
+        V4L2_CID_BACKLIGHT_COMPENSATION,
+        V4L2_CID_EXPOSURE_AUTO
+    };
+
+    for (const auto& controlId : controlIds) {
+        if (is_control_supported(g, controlId)) {
+            std::cout << "Control " << std::hex << controlId << " is supported" << std::endl;
+        } else {
+            std::cout << "Control " << std::hex << controlId << " is not supported" << std::endl;
+        }
+    }
+
+    close(g->fd);
+}
+
 void set_img_format(ImageGetter * g, const Resolution& res)
 {
 	// Set Image format
@@ -86,6 +139,18 @@ void set_img_format(ImageGetter * g, const Resolution& res)
 	}
 	cout << "Set img format resulted with: " << ret << endl; 
 }
+
+void set_camera_control(ImageGetter * g, __u32 controlId, __s32 value) {
+    struct v4l2_control control;
+    control.id = controlId;
+    control.value = value;
+    
+    if (ioctl(g->fd, VIDIOC_S_CTRL, &control) == -1) {
+        perror("Failed to set camera control");
+        // handle error
+    }
+}
+
 
 void 
 setup_buffers(ImageGetter * g)
