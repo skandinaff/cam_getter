@@ -11,6 +11,8 @@
 
 // v4l2-ctl -d /dev/video1 -l // command to check cameras controls
 
+#define CUSTOM_CID_EXPOSURE_DYNAMIC_FRAMERATE 0x009a0903
+
 class CamCtrl
 {
 public:
@@ -28,6 +30,7 @@ public:
         int backlightCompensation = 1;
         int exposureAuto = 3;
         int exposureTimeAbsolute = 157;
+        int exposure_dynamic_framerate = 0;
     };
     bool create_cam_config_file(const std::string& filename, const CameraControls& controls);
     bool read_cam_config_file(const std::string& filename, CameraControls& controls);
@@ -36,11 +39,57 @@ public:
     void set_camera_controls(ImageGetter * g, const CameraControls& controls);
     void check_camera_capabilities(ImageGetter * g, const char * device);
     bool is_control_supported(ImageGetter * g, __u32 controlId);
-
-
-
-
 };
+
+inline std::string getV4l2CtlOutput() {
+    std::string command = "v4l2-ctl -d " + std::string(video_device) + " -L";
+
+    std::stringstream output;
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe) {
+        char buffer[128];
+        while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != nullptr) {
+                output << buffer;
+            }
+        }
+        pclose(pipe);
+    }
+
+    return output.str();
+}
+
+inline bool addBoilerplateToJsonFile(const std::string& filePath) {
+
+    std::ifstream fileIn(filePath);  // Open the existing JSON file
+    if (!fileIn.is_open()) {
+        std::cerr << "Failed to open the JSON file." << std::endl;
+        return false;
+    }
+
+    std::string existingJsonData((std::istreambuf_iterator<char>(fileIn)), std::istreambuf_iterator<char>());
+
+    fileIn.close();  // Close the file
+
+    std::ofstream fileOut(filePath);  // Open the JSON file for writing
+    if (!fileOut.is_open()) {
+        std::cerr << "Failed to open the JSON file for writing." << std::endl;
+        return false;
+    }
+
+    std::string boilerplateText = "/* Avaliable settinngs of: " 
+                                    + (std::string)video_device 
+                                    + "\n WARNING: The order of keys is mixed"
+                                    + "\n" + getV4l2CtlOutput() 
+                                    + "*/\n";
+    fileOut << boilerplateText << existingJsonData;  // Write the boilerplate text and the existing JSON data to the file
+
+    fileOut.close();  // Close the file
+
+    std::cout << "Boilerplate text added successfully." << std::endl;
+    return true;
+}
+
 
 inline bool CamCtrl::create_cam_config_file(const std::string& filename, const CameraControls& controls) {
     Json::Value root;
@@ -48,15 +97,16 @@ inline bool CamCtrl::create_cam_config_file(const std::string& filename, const C
     root["contrast"] = controls.contrast;
     root["saturation"] = controls.saturation;
     root["hue"] = controls.hue;
-    root["autoWhiteBalance"] = controls.autoWhiteBalance;
+    root["white_balance_automatic"] = controls.autoWhiteBalance;
     root["gamma"] = controls.gamma;
     root["gain"] = controls.gain;
-    root["powerLineFrequency"] = controls.powerLineFrequency;
-    root["whiteBalanceTemperature"] = controls.whiteBalanceTemperature;
+    root["power_line_frequency"] = controls.powerLineFrequency;
+    root["white_balance_temperature"] = controls.whiteBalanceTemperature;
     root["sharpness"] = controls.sharpness;
-    root["backlightCompensation"] = controls.backlightCompensation;
-    root["exposureAuto"] = controls.exposureAuto;
-    root["exposureTimeAbsolute"] = controls.exposureTimeAbsolute;
+    root["backlight_compensation"] = controls.backlightCompensation;
+    root["auto_exposure"] = controls.exposureAuto;
+    root["exposure_time_absolute"] = controls.exposureTimeAbsolute;
+    root["exposure_dynamic_framerate"] = controls.exposure_dynamic_framerate;
 
     std::ofstream configFile(filename);
     if (configFile.is_open()) {
@@ -76,25 +126,24 @@ inline bool CamCtrl::read_cam_config_file(const std::string& filename, CameraCon
         std::cout << "Failed to open config file: " << filename << std::endl;
         return false;
     }
-
     Json::Value configJson;
     configFile >> configJson;
     configFile.close();
-
 
     controls.brightness = configJson["brightness"].asInt();
     controls.contrast = configJson["contrast"].asInt();
     controls.saturation = configJson["saturation"].asInt();
     controls.hue = configJson["hue"].asInt();
-    controls.autoWhiteBalance = configJson["autoWhiteBalance"].asInt();
+    controls.autoWhiteBalance = configJson["white_balance_automatic"].asInt();
     controls.gamma = configJson["gamma"].asInt();
     controls.gain = configJson["gain"].asInt();
-    controls.powerLineFrequency = configJson["powerLineFrequency"].asInt();
-    controls.whiteBalanceTemperature = configJson["whiteBalanceTemperature"].asInt();
+    controls.powerLineFrequency = configJson["power_line_frequency"].asInt();
+    controls.whiteBalanceTemperature = configJson["white_balance_temperature"].asInt();
     controls.sharpness = configJson["sharpness"].asInt();
-    controls.backlightCompensation = configJson["backlightCompensation"].asInt();
-    controls.exposureAuto = configJson["exposureAuto"].asInt();
-    controls.exposureTimeAbsolute = configJson["exposureTimeAbsolute"].asInt();
+    controls.backlightCompensation = configJson["backlight_compensation"].asInt();
+    controls.exposureAuto = configJson["auto_exposure"].asInt();
+    controls.exposureTimeAbsolute = configJson["exposure_time_absolute"].asInt();
+    controls.exposure_dynamic_framerate = configJson["exposure_dynamic_framerate"].asInt();
 
     std::cout << "Config file successfully read: " << filename << std::endl;
     return true;
@@ -107,7 +156,12 @@ inline bool CamCtrl::load_cam_config(const std::string& filename, CameraControls
         return read_cam_config_file(filename, controls);
     } else {
         std::cout << "Config file doesn't exist, creating a new one with default values" << std::endl;
-        return create_cam_config_file(filename, controls);
+        bool result = false;
+        result = create_cam_config_file(filename, controls);
+        if(result){
+            result = addBoilerplateToJsonFile(filename);
+        }
+        return result;
     }
 }
 inline void CamCtrl::set_camera_control(ImageGetter * g, __u32 controlId, __s32 value) {
@@ -144,6 +198,7 @@ inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& 
     set_camera_control(g, V4L2_CID_BACKLIGHT_COMPENSATION, controls.backlightCompensation);
     set_camera_control(g, V4L2_CID_EXPOSURE_AUTO, controls.exposureAuto);
     set_camera_control(g, V4L2_CID_EXPOSURE_ABSOLUTE, controls.exposureTimeAbsolute);
+    set_camera_control(g, CUSTOM_CID_EXPOSURE_DYNAMIC_FRAMERATE, controls.exposure_dynamic_framerate);
     // Start the camera streaming again
     if (ioctl(g->fd, VIDIOC_STREAMON, &g->bufferinfo.type) == -1) {
         perror("Failed to start camera streaming");
@@ -178,7 +233,8 @@ inline void CamCtrl::check_camera_capabilities(ImageGetter * g, const char * dev
         V4L2_CID_SHARPNESS,
         V4L2_CID_BACKLIGHT_COMPENSATION,
         V4L2_CID_EXPOSURE_AUTO,
-        V4L2_CID_EXPOSURE_ABSOLUTE
+        V4L2_CID_EXPOSURE_ABSOLUTE,
+        CUSTOM_CID_EXPOSURE_DYNAMIC_FRAMERATE
     };
     cout << "Checking camera capabilities for fd: " << g->fd << endl;
     for (const auto& controlId : controlIds) {
