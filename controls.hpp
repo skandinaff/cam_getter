@@ -7,6 +7,7 @@
 #include <jsoncpp/json/json.h>
 
 #include "cam.h"
+#include "capabilities.h"
 
 // v4l2-ctl -d /dev/video1 -l // command to check cameras controls
 
@@ -113,20 +114,19 @@ inline void CamCtrl::set_camera_control(ImageGetter * g, __u32 controlId, __s32 
     struct v4l2_control control;
     control.id = controlId;
     control.value = value;
-    
-    cout << "fd = " << g->fd << endl;
-    cout << "Attmept to write Control " << controlId << " value: "<< value << endl;
-
-    if (ioctl(g->fd, VIDIOC_G_CTRL, &control) == -1) {
+    cout << "Attmept to write Control "<< std::hex  << controlId << " value: " << std::dec << value << endl;
+    // VIDIOC_S_EXT_CTRLS
+    if (ioctl(g->fd, VIDIOC_S_CTRL, &control) == -1) { 
         perror("Failed to set camera control");
         cout << "ControlID: " << controlId << endl; 
         // handle error
     } else {
-        cout << " Control " << controlId << "writen sucessfully!" << endl;
+        cout << "Control " << std::hex << controlId << " writen sucessfully!" << std::dec << endl;
     }
 }
 
 inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& controls) {
+     cout << "Setting camera controls for fd: " << g->fd << endl;
     set_camera_control(g, V4L2_CID_BRIGHTNESS, controls.brightness);
     set_camera_control(g, V4L2_CID_CONTRAST, controls.contrast);
     set_camera_control(g, V4L2_CID_SATURATION, controls.saturation);
@@ -139,32 +139,24 @@ inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& 
     set_camera_control(g, V4L2_CID_SHARPNESS, controls.sharpness);
     set_camera_control(g, V4L2_CID_BACKLIGHT_COMPENSATION, controls.backlightCompensation);
     set_camera_control(g, V4L2_CID_EXPOSURE_AUTO, controls.exposureAuto);
+    set_camera_control(g, V4L2_CID_EXPOSURE_ABSOLUTE, controls.exposureTimeAbsolute);
 }
 inline bool CamCtrl::is_control_supported(ImageGetter * g, __u32 controlId) {
     struct v4l2_queryctrl queryControl;
     queryControl.id = controlId;
-
     if (ioctl(g->fd, VIDIOC_QUERYCTRL, &queryControl) == -1) {
         // failed to query control, handle error
         return false;
     }
-
     if (queryControl.flags & V4L2_CTRL_FLAG_DISABLED) {
         // control is disabled, not supported
         return false;
     }
-    cout << "Control supported!" << endl;
     return true;
 }
 
 inline void CamCtrl::check_camera_capabilities(ImageGetter * g, const char * device) {
-    g->fd = open(device, O_RDWR);
-    if (g->fd == -1) {
-        perror("Failed to open device");
-        return;
-    }
-
-    std::vector<__u32> controlIds = {
+        std::vector<__u32> controlIds = {
         V4L2_CID_BRIGHTNESS,
         V4L2_CID_CONTRAST,
         V4L2_CID_SATURATION,
@@ -176,17 +168,24 @@ inline void CamCtrl::check_camera_capabilities(ImageGetter * g, const char * dev
         V4L2_CID_WHITE_BALANCE_TEMPERATURE,
         V4L2_CID_SHARPNESS,
         V4L2_CID_BACKLIGHT_COMPENSATION,
-        V4L2_CID_EXPOSURE_AUTO
+        V4L2_CID_EXPOSURE_AUTO,
+        V4L2_CID_EXPOSURE_ABSOLUTE
     };
     cout << "Checking camera capabilities for fd: " << g->fd << endl;
     for (const auto& controlId : controlIds) {
         if (is_control_supported(g, controlId)) {
-            std::cout << "Control " << std::hex << controlId << " is supported" << std::endl;
+            std::cout << "Control " << std::hex << controlId << " is supported" << std::dec << std::endl;
         } else {
-            std::cout << "Control " << std::hex << controlId << " is not supported" << std::endl;
+            std::cout << "Control " << std::hex << controlId << " is not supported" << std::dec << std::endl;
         }
     }
-
+    struct v4l2_capability capability;
+    if (ioctl(g->fd, VIDIOC_QUERYCAP, &capability) < 0) {
+        // something went wrong... exit
+        perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
+        exit(1);
+    }		
+    printCapabilities(capability);
     close(g->fd);
 }
 

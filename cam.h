@@ -50,10 +50,11 @@ typedef struct {
 	char * buffer;
 } ImageGetter;
 
-void initialize_imget(ImageGetter * g, const char * device)
+void initialize_imget(ImageGetter * g, std::string device)//const char * device)
 {
+	
 	//TODO: Make it so a device can be chosen
-	g->fd = open(device, O_RDWR);
+	g->fd = open(device.c_str(), O_RDWR);
 	if (g->fd < 0) {
 		perror("Failed to open device, OPEN");
 		//exit(1);
@@ -67,8 +68,14 @@ void initialize_imget(ImageGetter * g, const char * device)
 			// something went wrong... exit
 			perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
 			exit(1);
-		}
+		}		
+		printf("Driver: %s\n", capability.driver);
+		printf("Card: %s\n", capability.card);
+		printf("Bus info: %s\n", capability.bus_info);
+		printf("Version: %d.%d.%d\n", (capability.version >> 16) & 0xFF, (capability.version >> 8) & 0xFF, capability.version & 0xFF);
+		printf("Capabilities: 0x%08X\n", capability.capabilities);
 	}
+
 }
 
 void set_img_format(ImageGetter * g, const Resolution& res)
