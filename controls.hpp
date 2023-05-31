@@ -115,7 +115,6 @@ inline void CamCtrl::set_camera_control(ImageGetter * g, __u32 controlId, __s32 
     control.id = controlId;
     control.value = value;
     cout << "Attmept to write Control "<< std::hex  << controlId << " value: " << std::dec << value << endl;
-    // VIDIOC_S_EXT_CTRLS
     if (ioctl(g->fd, VIDIOC_S_CTRL, &control) == -1) { 
         perror("Failed to set camera control");
         cout << "ControlID: " << controlId << endl; 
@@ -127,6 +126,11 @@ inline void CamCtrl::set_camera_control(ImageGetter * g, __u32 controlId, __s32 
 
 inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& controls) {
      cout << "Setting camera controls for fd: " << g->fd << endl;
+    // Stop the camera streaming
+    if (ioctl(g->fd, VIDIOC_STREAMOFF, &g->bufferinfo.type) == -1) {
+        perror("Failed to stop camera streaming");
+        return;
+    }
     set_camera_control(g, V4L2_CID_BRIGHTNESS, controls.brightness);
     set_camera_control(g, V4L2_CID_CONTRAST, controls.contrast);
     set_camera_control(g, V4L2_CID_SATURATION, controls.saturation);
@@ -140,6 +144,11 @@ inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& 
     set_camera_control(g, V4L2_CID_BACKLIGHT_COMPENSATION, controls.backlightCompensation);
     set_camera_control(g, V4L2_CID_EXPOSURE_AUTO, controls.exposureAuto);
     set_camera_control(g, V4L2_CID_EXPOSURE_ABSOLUTE, controls.exposureTimeAbsolute);
+    // Start the camera streaming again
+    if (ioctl(g->fd, VIDIOC_STREAMON, &g->bufferinfo.type) == -1) {
+        perror("Failed to start camera streaming");
+        return;
+    }
 }
 inline bool CamCtrl::is_control_supported(ImageGetter * g, __u32 controlId) {
     struct v4l2_queryctrl queryControl;
