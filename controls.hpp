@@ -21,27 +21,93 @@ public:
         int contrast = 32;
         int saturation = 64;
         int hue = 0;
-        int autoWhiteBalance = 1;
+        int white_balance_automatic = 1;
         int gamma = 100;
         int gain = 0;
-        int powerLineFrequency = 1;
-        int whiteBalanceTemperature = 4600;
+        int power_line_frequency = 1;
+        int white_balance_temperature = 4600;
         int sharpness = 3;
-        int backlightCompensation = 1;
-        int exposureAuto = 3;
-        int exposureTimeAbsolute = 157;
+        int backlight_compensation = 1;
+        int auto_exposure = 3;
+        int exposure_time_absolute = 157;
         int exposure_dynamic_framerate = 0;
     };
     bool create_cam_config_file(const std::string& filename, const CameraControls& controls);
     bool read_cam_config_file(const std::string& filename, CameraControls& controls);
-    bool load_cam_config(const std::string& filename, CameraControls& controls);
+    bool load_cam_config(const std::string& filename, CameraControls& controls, bool overwrite = false);
     void set_camera_control(ImageGetter * g, __u32 controlId, __s32 value);
     void set_camera_controls(ImageGetter * g, const CameraControls& controls);
     void check_camera_capabilities(ImageGetter * g, const char * device);
     bool is_control_supported(ImageGetter * g, __u32 controlId);
+    void parseV4l2CtlOutput(const std::string& v4l2CtlOutput, CameraControls& controls);
+    std::string getV4l2CtlOutput();
+private:
+    bool addBoilerplateToJsonFile(const std::string& filePath);
 };
 
-inline std::string getV4l2CtlOutput() {
+inline void  CamCtrl::parseV4l2CtlOutput(const std::string& v4l2CtlOutput, CameraControls& controls) {
+    std::istringstream iss(v4l2CtlOutput);
+    std::string line;
+    std::cout << "Current " << video_device << " settings:\n";
+    std::cout << v4l2CtlOutput << std::endl;
+
+    while (std::getline(iss, line)) {
+        std::istringstream lineStream(line);
+        std::string name;
+        std::string value;
+
+        lineStream >> name;
+
+        // Find the position of "value=" in the line
+        size_t valuePos = line.find("value=");
+        if (valuePos != std::string::npos) {
+            // Extract the value after "value="
+            value = line.substr(valuePos + 6); // 6 is the length of "value="
+
+            // Remove any trailing whitespace from the value
+            value.erase(value.find_last_not_of(" \t") + 1);
+        }
+
+        // Update the corresponding control value based on the control name
+        
+        if (name == "brightness")
+            controls.brightness = std::stoi(value);
+        else if (name == "contrast")
+            controls.contrast = std::stoi(value);
+        else if (name == "saturation")
+            controls.saturation = std::stoi(value);
+        else if (name == "hue")
+            controls.hue = std::stoi(value);
+        else if (name == "white_balance_automatic")
+            controls.white_balance_automatic = std::stoi(value);
+        else if (name == "gamma")
+            controls.gamma = std::stoi(value);
+        else if (name == "gain")
+            controls.gain = std::stoi(value);
+        else if (name == "power_line_frequency")
+            controls.power_line_frequency = std::stoi(value);
+        else if (name == "white_balance_temperature")
+            controls.white_balance_temperature = std::stoi(value);
+        else if (name == "sharpness")
+            controls.sharpness = std::stoi(value);
+        else if (name == "backlight_compensation")
+            controls.backlight_compensation = std::stoi(value);
+        else if (name == "auto_exposure")
+            controls.auto_exposure = std::stoi(value);
+        else if (name == "exposure_time_absolute")
+            controls.exposure_time_absolute = std::stoi(value);
+        else if (name == "exposure_dynamic_framerate")
+            controls.exposure_dynamic_framerate = std::stoi(value);
+        
+        // Add more if-else conditions for other control names...
+
+        // Uncomment the following line to print the parsed name and value
+        // std::cout << "Control: " << name << ", Value: " << value << std::endl;
+    }
+}
+
+
+inline std::string CamCtrl::getV4l2CtlOutput() {
     std::string command = "v4l2-ctl -d " + std::string(video_device) + " -L";
 
     std::stringstream output;
@@ -59,7 +125,7 @@ inline std::string getV4l2CtlOutput() {
     return output.str();
 }
 
-inline bool addBoilerplateToJsonFile(const std::string& filePath) {
+inline bool CamCtrl::addBoilerplateToJsonFile(const std::string& filePath) {
 
     std::ifstream fileIn(filePath);  // Open the existing JSON file
     if (!fileIn.is_open()) {
@@ -97,15 +163,15 @@ inline bool CamCtrl::create_cam_config_file(const std::string& filename, const C
     root["contrast"] = controls.contrast;
     root["saturation"] = controls.saturation;
     root["hue"] = controls.hue;
-    root["white_balance_automatic"] = controls.autoWhiteBalance;
+    root["white_balance_automatic"] = controls.white_balance_automatic;
     root["gamma"] = controls.gamma;
     root["gain"] = controls.gain;
-    root["power_line_frequency"] = controls.powerLineFrequency;
-    root["white_balance_temperature"] = controls.whiteBalanceTemperature;
+    root["power_line_frequency"] = controls.power_line_frequency;
+    root["white_balance_temperature"] = controls.white_balance_temperature;
     root["sharpness"] = controls.sharpness;
-    root["backlight_compensation"] = controls.backlightCompensation;
-    root["auto_exposure"] = controls.exposureAuto;
-    root["exposure_time_absolute"] = controls.exposureTimeAbsolute;
+    root["backlight_compensation"] = controls.backlight_compensation;
+    root["auto_exposure"] = controls.auto_exposure;
+    root["exposure_time_absolute"] = controls.exposure_time_absolute;
     root["exposure_dynamic_framerate"] = controls.exposure_dynamic_framerate;
 
     std::ofstream configFile(filename);
@@ -134,28 +200,29 @@ inline bool CamCtrl::read_cam_config_file(const std::string& filename, CameraCon
     controls.contrast = configJson["contrast"].asInt();
     controls.saturation = configJson["saturation"].asInt();
     controls.hue = configJson["hue"].asInt();
-    controls.autoWhiteBalance = configJson["white_balance_automatic"].asInt();
+    controls.white_balance_automatic = configJson["white_balance_automatic"].asInt();
     controls.gamma = configJson["gamma"].asInt();
     controls.gain = configJson["gain"].asInt();
-    controls.powerLineFrequency = configJson["power_line_frequency"].asInt();
-    controls.whiteBalanceTemperature = configJson["white_balance_temperature"].asInt();
+    controls.power_line_frequency = configJson["power_line_frequency"].asInt();
+    controls.white_balance_temperature = configJson["white_balance_temperature"].asInt();
     controls.sharpness = configJson["sharpness"].asInt();
-    controls.backlightCompensation = configJson["backlight_compensation"].asInt();
-    controls.exposureAuto = configJson["auto_exposure"].asInt();
-    controls.exposureTimeAbsolute = configJson["exposure_time_absolute"].asInt();
+    controls.backlight_compensation = configJson["backlight_compensation"].asInt();
+    controls.auto_exposure = configJson["auto_exposure"].asInt();
+    controls.exposure_time_absolute = configJson["exposure_time_absolute"].asInt();
     controls.exposure_dynamic_framerate = configJson["exposure_dynamic_framerate"].asInt();
 
     std::cout << "Config file successfully read: " << filename << std::endl;
     return true;
 }
 
-inline bool CamCtrl::load_cam_config(const std::string& filename, CameraControls& controls) {
-    if (std::filesystem::exists(filename)) {
+inline bool CamCtrl::load_cam_config(const std::string& filename, CameraControls& controls, bool overwrite) {
+    if (std::filesystem::exists(filename) && !overwrite) {
         // Config file exists, read the parameters
         std::cout << "Config file exists, reading params from there.." << std::endl;
         return read_cam_config_file(filename, controls);
     } else {
-        std::cout << "Config file doesn't exist, creating a new one with default values" << std::endl;
+        if(overwrite) std::cout << "Writing current camera settings into config file..." << std::endl;
+        else std::cout << "Config file doesn't exist, creating a new one with default values" << std::endl;
         bool result = false;
         result = create_cam_config_file(filename, controls);
         if(result){
@@ -189,15 +256,15 @@ inline void CamCtrl::set_camera_controls(ImageGetter * g, const CameraControls& 
     set_camera_control(g, V4L2_CID_CONTRAST, controls.contrast);
     set_camera_control(g, V4L2_CID_SATURATION, controls.saturation);
     set_camera_control(g, V4L2_CID_HUE, controls.hue);
-    set_camera_control(g, V4L2_CID_AUTO_WHITE_BALANCE, controls.autoWhiteBalance);
+    set_camera_control(g, V4L2_CID_AUTO_WHITE_BALANCE, controls.white_balance_automatic);
     set_camera_control(g, V4L2_CID_GAMMA, controls.gamma);
     set_camera_control(g, V4L2_CID_GAIN, controls.gain);
-    set_camera_control(g, V4L2_CID_POWER_LINE_FREQUENCY, controls.powerLineFrequency);
-    set_camera_control(g, V4L2_CID_WHITE_BALANCE_TEMPERATURE, controls.whiteBalanceTemperature);
+    set_camera_control(g, V4L2_CID_POWER_LINE_FREQUENCY, controls.power_line_frequency);
+    set_camera_control(g, V4L2_CID_WHITE_BALANCE_TEMPERATURE, controls.white_balance_temperature);
     set_camera_control(g, V4L2_CID_SHARPNESS, controls.sharpness);
-    set_camera_control(g, V4L2_CID_BACKLIGHT_COMPENSATION, controls.backlightCompensation);
-    set_camera_control(g, V4L2_CID_EXPOSURE_AUTO, controls.exposureAuto);
-    set_camera_control(g, V4L2_CID_EXPOSURE_ABSOLUTE, controls.exposureTimeAbsolute);
+    set_camera_control(g, V4L2_CID_BACKLIGHT_COMPENSATION, controls.backlight_compensation);
+    set_camera_control(g, V4L2_CID_EXPOSURE_AUTO, controls.auto_exposure);
+    set_camera_control(g, V4L2_CID_EXPOSURE_ABSOLUTE, controls.exposure_time_absolute);
     set_camera_control(g, CUSTOM_CID_EXPOSURE_DYNAMIC_FRAMERATE, controls.exposure_dynamic_framerate);
     // Start the camera streaming again
     if (ioctl(g->fd, VIDIOC_STREAMON, &g->bufferinfo.type) == -1) {
