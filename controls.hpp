@@ -39,13 +39,13 @@ public:
     void set_camera_controls(ImageGetter * g, const CameraControls& controls);
     void check_camera_capabilities(ImageGetter * g, const char * device);
     bool is_control_supported(ImageGetter * g, __u32 controlId);
-    void parseV4l2CtlOutput(const std::string& v4l2CtlOutput, CameraControls& controls);
+    void parseV4l2CtlOutput(const std::string& v4l2CtlOutput, const std::string& keyword,  CameraControls& controls);
     std::string getV4l2CtlOutput();
 private:
     bool addBoilerplateToJsonFile(const std::string& filePath);
 };
 
-inline void  CamCtrl::parseV4l2CtlOutput(const std::string& v4l2CtlOutput, CameraControls& controls) {
+inline void CamCtrl::parseV4l2CtlOutput(const std::string& v4l2CtlOutput, const std::string& keyword, CameraControls& controls) {
     std::istringstream iss(v4l2CtlOutput);
     std::string line;
     std::cout << "Current " << video_device << " settings:\n";
@@ -58,51 +58,46 @@ inline void  CamCtrl::parseV4l2CtlOutput(const std::string& v4l2CtlOutput, Camer
 
         lineStream >> name;
 
-        // Find the position of "value=" in the line
-        size_t valuePos = line.find("value=");
-        if (valuePos != std::string::npos) {
-            // Extract the value after "value="
-            value = line.substr(valuePos + 6); // 6 is the length of "value="
+        // Find the position of the keyword in the line
+        size_t keywordPos = line.find(keyword);
+        if (keywordPos != std::string::npos) {
+            // Extract the value after the keyword
+            value = line.substr(keywordPos + keyword.length());
 
-            // Remove any trailing whitespace from the value
+            // Remove any leading or trailing whitespace from the value
+            value.erase(0, value.find_first_not_of(" \t"));
             value.erase(value.find_last_not_of(" \t") + 1);
+
+            // Update the corresponding control value based on the control name
+            if (name == "brightness")
+                controls.brightness = std::stoi(value);
+            else if (name == "contrast")
+                controls.contrast = std::stoi(value);
+            else if (name == "saturation")
+                controls.saturation = std::stoi(value);
+            else if (name == "hue")
+                controls.hue = std::stoi(value);
+            else if (name == "white_balance_automatic")
+                controls.white_balance_automatic = std::stoi(value);
+            else if (name == "gamma")
+                controls.gamma = std::stoi(value);
+            else if (name == "gain")
+                controls.gain = std::stoi(value);
+            else if (name == "power_line_frequency")
+                controls.power_line_frequency = std::stoi(value);
+            else if (name == "white_balance_temperature")
+                controls.white_balance_temperature = std::stoi(value);
+            else if (name == "sharpness")
+                controls.sharpness = std::stoi(value);
+            else if (name == "backlight_compensation")
+                controls.backlight_compensation = std::stoi(value);
+            else if (name == "auto_exposure")
+                controls.auto_exposure = std::stoi(value);
+            else if (name == "exposure_time_absolute")
+                controls.exposure_time_absolute = std::stoi(value);
+            else if (name == "exposure_dynamic_framerate")
+                controls.exposure_dynamic_framerate = std::stoi(value);
         }
-
-        // Update the corresponding control value based on the control name
-        
-        if (name == "brightness")
-            controls.brightness = std::stoi(value);
-        else if (name == "contrast")
-            controls.contrast = std::stoi(value);
-        else if (name == "saturation")
-            controls.saturation = std::stoi(value);
-        else if (name == "hue")
-            controls.hue = std::stoi(value);
-        else if (name == "white_balance_automatic")
-            controls.white_balance_automatic = std::stoi(value);
-        else if (name == "gamma")
-            controls.gamma = std::stoi(value);
-        else if (name == "gain")
-            controls.gain = std::stoi(value);
-        else if (name == "power_line_frequency")
-            controls.power_line_frequency = std::stoi(value);
-        else if (name == "white_balance_temperature")
-            controls.white_balance_temperature = std::stoi(value);
-        else if (name == "sharpness")
-            controls.sharpness = std::stoi(value);
-        else if (name == "backlight_compensation")
-            controls.backlight_compensation = std::stoi(value);
-        else if (name == "auto_exposure")
-            controls.auto_exposure = std::stoi(value);
-        else if (name == "exposure_time_absolute")
-            controls.exposure_time_absolute = std::stoi(value);
-        else if (name == "exposure_dynamic_framerate")
-            controls.exposure_dynamic_framerate = std::stoi(value);
-        
-        // Add more if-else conditions for other control names...
-
-        // Uncomment the following line to print the parsed name and value
-        // std::cout << "Control: " << name << ", Value: " << value << std::endl;
     }
 }
 
@@ -224,7 +219,9 @@ inline bool CamCtrl::load_cam_config(const std::string& filename, CameraControls
         if(overwrite) std::cout << "Writing current camera settings into config file..." << std::endl;
         else std::cout << "Config file doesn't exist, creating a new one with default values" << std::endl;
         bool result = false;
-        result = create_cam_config_file(filename, controls);
+        CameraControls defaultControls;
+        parseV4l2CtlOutput(getV4l2CtlOutput(), "default=", defaultControls);
+        result = create_cam_config_file(filename, defaultControls);
         if(result){
             result = addBoilerplateToJsonFile(filename);
         }
